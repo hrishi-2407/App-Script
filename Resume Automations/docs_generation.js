@@ -11,7 +11,7 @@ function generateAndShareResumes() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Applications');
   const lastRow = sheet.getLastRow();
   const startRow = 4;
-  const batchSize = 40;
+  const batchSize = 35;
 
   const baseResumeId = '1-HZj9OROYQ_ZiZFFmoPbqQCNk6GExToS6mjWj-aSOx8';
   const shareEmails = ['hrishibari2002@gmail.com', 'suhas112001@gmail.com'];
@@ -60,7 +60,7 @@ function generateAndShareResumes() {
       processedCount++;
 
       if (processedCount % 10 === 0) {
-        Utilities.sleep(5000);
+        Utilities.sleep(500);
       }
 
       if (processedCount >= batchSize) {

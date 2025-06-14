@@ -10,7 +10,7 @@ const CONFIG = {
   OUTPUT_COLUMN: 'K',
   START_ROW: 2,
   BATCH_SIZE: 15, // Reduced to respect 15 requests per minute limit
-  API_DELAY: 4500, // 4.5 seconds between API calls (4 requests per minute max)
+  API_DELAY: 1000, // 1 seconds between API calls (4 requests per minute max)
   DEFAULT_LOCATION: 'Los Angeles, CA',
   GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent'
 };
@@ -185,7 +185,7 @@ function enhanceJobLocations() {
       
       // Add delay between batches (except for the last batch)
       if (batchIndex < batchedData.length - 1) {
-        Utilities.sleep(2000);
+        Utilities.sleep(1000);
       }
     }
     
