@@ -13,13 +13,15 @@ function generateAndShareResumes() {
   const startRow = 4;
   const batchSize = 35;
 
-  const baseResumeId = '1-HZj9OROYQ_ZiZFFmoPbqQCNk6GExToS6mjWj-aSOx8';
+  const baseResumeId = '1Kh8VauHOGSy3PDverq5ZLlEqGo8xOlP-bRuHowQol6g';
   const shareEmails = ['hrishibari2002@gmail.com', 'suhas112001@gmail.com'];
 
   const dataRange = sheet.getRange(startRow, 1, lastRow - startRow + 1, 11);
   const data = dataRange.getValues();
 
   let processedCount = 0;
+  const sheetUpdates = []; // Array to collect all sheet updates for batch operation
+  const updateRows = []; // Array to track which rows need updates
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
@@ -38,40 +40,90 @@ function generateAndShareResumes() {
     }
 
     if (!changedLocation) {
-      sheet.getRange(currentSheetRow, 9).setValue('❌ No location provided');
+      sheetUpdates.push(['❌ No location provided']);
+      updateRows.push(currentSheetRow);
       continue;
     }
 
     try {
+      // Create copy of the resume
       const newResume = DriveApp.getFileById(baseResumeId).makeCopy(`${companyName}_Yeswanth Koti Resume`);
       const newResumeId = newResume.getId();
+      
+      // Open document, replace text, and save
       const doc = DocumentApp.openById(newResumeId);
       const body = doc.getBody();
       body.replaceText('{{LOCATION}}', changedLocation);
       doc.saveAndClose();
 
+      // Optimize sharing - get file object once and reuse
+      const newResumeFile = DriveApp.getFileById(newResumeId);
       shareEmails.forEach(email => {
-        DriveApp.getFileById(newResumeId).addEditor(email);
+        newResumeFile.addEditor(email);
       });
 
+      // Prepare sheet update data
       const newResumeUrl = `https://docs.google.com/document/d/${newResumeId}/edit`;
-      sheet.getRange(currentSheetRow, 9).setValue(newResumeUrl);
+      sheetUpdates.push([newResumeUrl]);
+      updateRows.push(currentSheetRow);
 
       processedCount++;
 
-      if (processedCount % 10 === 0) {
-        Utilities.sleep(500);
-      }
+      // Removed unnecessary sleep - Google Apps Script handles rate limiting automatically
 
       if (processedCount >= batchSize) {
+        // Perform batch update before breaking
+        performBatchSheetUpdate(sheet, sheetUpdates, updateRows);
         SpreadsheetApp.getUi().alert(`Processed ${batchSize} resumes. Run again for remaining.`);
         return;
       }
 
     } catch (err) {
-      sheet.getRange(currentSheetRow, 9).setValue(`❌ Error: ${err.message}`);
+      // Collect error for batch update
+      sheetUpdates.push([`❌ Error: ${err.message}`]);
+      updateRows.push(currentSheetRow);
     }
   }
 
+  // Perform final batch update for all remaining items
+  performBatchSheetUpdate(sheet, sheetUpdates, updateRows);
   SpreadsheetApp.getUi().alert(`Resume generation completed. Total processed: ${processedCount}`);
+}
+
+/**
+ * Helper function to perform batch sheet updates
+ * @param {Sheet} sheet - The sheet object
+ * @param {Array} updates - Array of values to update
+ * @param {Array} rows - Array of row numbers corresponding to updates
+ */
+function performBatchSheetUpdate(sheet, updates, rows) {
+  if (updates.length === 0) return;
+  
+  // Group consecutive rows for more efficient batch updates
+  const ranges = [];
+  let currentRange = { startRow: rows[0], values: [updates[0]] };
+  
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i] === rows[i-1] + 1) {
+      // Consecutive row - add to current range
+      currentRange.values.push(updates[i]);
+    } else {
+      // Non-consecutive row - finalize current range and start new one
+      ranges.push(currentRange);
+      currentRange = { startRow: rows[i], values: [updates[i]] };
+    }
+  }
+  // Don't forget the last range
+  ranges.push(currentRange);
+  
+  // Apply batch updates for each range
+  ranges.forEach(range => {
+    if (range.values.length === 1) {
+      // Single cell update
+      sheet.getRange(range.startRow, 9).setValue(range.values[0][0]);
+    } else {
+      // Multi-cell batch update
+      sheet.getRange(range.startRow, 9, range.values.length, 1).setValues(range.values);
+    }
+  });
 }
