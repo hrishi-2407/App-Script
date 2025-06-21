@@ -19,7 +19,7 @@ function generateAndShareResumes() {
   const dataRange = sheet.getRange(startRow, 1, lastRow - startRow + 1, 11);
   const data = dataRange.getValues();
 
-  let processedCount = 0;
+  let itemsProcessed = 0;
   const sheetUpdates = []; // Array to collect all sheet updates for batch operation
   const updateRows = []; // Array to track which rows need updates
 
@@ -42,6 +42,7 @@ function generateAndShareResumes() {
     if (!changedLocation) {
       sheetUpdates.push(['❌ No location provided']);
       updateRows.push(currentSheetRow);
+      itemsProcessed++;
       continue;
     }
 
@@ -67,14 +68,13 @@ function generateAndShareResumes() {
       sheetUpdates.push([newResumeUrl]);
       updateRows.push(currentSheetRow);
 
-      processedCount++;
+      itemsProcessed++;
 
       // Removed unnecessary sleep - Google Apps Script handles rate limiting automatically
 
-      if (processedCount >= batchSize) {
+      if (itemsProcessed >= batchSize) {
         // Perform batch update before breaking
         performBatchSheetUpdate(sheet, sheetUpdates, updateRows);
-        SpreadsheetApp.getUi().alert(`Processed ${batchSize} resumes. Run again for remaining.`);
         return;
       }
 
@@ -82,12 +82,12 @@ function generateAndShareResumes() {
       // Collect error for batch update
       sheetUpdates.push([`❌ Error: ${err.message}`]);
       updateRows.push(currentSheetRow);
+      itemsProcessed++;
     }
   }
 
   // Perform final batch update for all remaining items
   performBatchSheetUpdate(sheet, sheetUpdates, updateRows);
-  SpreadsheetApp.getUi().alert(`Resume generation completed. Total processed: ${processedCount}`);
 }
 
 /**
